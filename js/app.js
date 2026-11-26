@@ -1,4 +1,4 @@
-// Menús en familia: app (sin compilación, JavaScript moderno del navegador)
+// Yes Chef: app (sin compilación, JavaScript moderno del navegador)
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/+esm";
 import { aggregateIngredients } from "./shopping.js";
 
@@ -150,8 +150,8 @@ function authView(mode) {
   const reg = mode === "register";
   const invite = localStorage.getItem("pendingInvite");
   return `<div class="center-card">
-    <div class="logo">🍽️</div>
-    <h1>Menús en familia</h1>
+    <div class="logo">👨‍🍳</div>
+    <h1>YES CHEF</h1>
     <p class="muted">Planifica la semana con IA y comparte la lista de la compra.</p>
     ${invite ? `<p class="notice">Te han invitado a una familia. ${reg ? "Crea tu cuenta" : "Entra o crea una cuenta"} para unirte.</p>` : ""}
     <form data-form="${reg ? "register" : "login"}" class="stack">
@@ -532,9 +532,9 @@ document.addEventListener("click", async (e) => {
         return render();
       case "share": {
         const link = inviteLink();
-        const text = `Únete a "${S.family.name}" en Menús en familia (código ${S.family.invite_code})`;
+        const text = `Únete a "${S.family.name}" en Yes Chef (código ${S.family.invite_code})`;
         if (navigator.share) {
-          try { await navigator.share({ title: "Menús en familia", text, url: link }); } catch { /* cancelado */ }
+          try { await navigator.share({ title: "Yes Chef", text, url: link }); } catch { /* cancelado */ }
         } else {
           await navigator.clipboard.writeText(link);
           toast("Enlace copiado");

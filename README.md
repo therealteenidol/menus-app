@@ -1,6 +1,6 @@
-# 🍽️ Menús en familia
+# 👨‍🍳 YES CHEF
 
-App web (PWA, se instala en el móvil) para organizar el **menú semanal con IA** y la **lista de la compra compartida** de toda la familia.
+**Yes Chef** es una app web (PWA, se instala en el móvil) para organizar el **menú semanal con IA** y la **lista de la compra compartida** de toda la familia.
 
 - **Familias**: cada persona tiene su cuenta; una crea la familia y comparte un enlace o código de invitación. Todos ven y editan lo mismo, y los cambios aparecen al instante en los demás móviles.
 - **Gustos**: cada miembro apunta lo que le gusta, lo que no y sus alergias (también se pueden apuntar las de otro miembro, p. ej. los niños).
@@ -13,7 +13,7 @@ El agente que compra en dia.es llegará en una fase posterior.
 
 | Parte | Dónde vive | Coste |
 |---|---|---|
-| La app (HTML + CSS + JavaScript, sin compilar nada) | GitHub Pages | Gratis |
+| La app (HTML + CSS + JavaScript, sin compilar nada) | GitHub Pages, en `https://yeschef.teenidol.es` | Gratis |
 | Cuentas, base de datos y tiempo real | [Supabase](https://supabase.com) | Gratis (plan Free) |
 | Llamadas a la IA | Una *Edge Function* de Supabase (`supabase/functions/ai`) | Gratis en Supabase; Claude se paga aparte con tu API key (unos céntimos por menú) |
 
@@ -38,8 +38,8 @@ supabase/functions/ai/index.ts       función que habla con Claude
 
 En **Authentication → URL Configuration**:
 
-- **Site URL**: `https://therealteenidol.github.io/menus-app/`
-- **Redirect URLs**: añade esa misma dirección y, si vas a probar en tu PC con WAMP, también `http://localhost/menus-app/`.
+- **Site URL**: `https://yeschef.teenidol.es/`
+- **Redirect URLs**: añade `https://yeschef.teenidol.es/**` y, si vas a probar en tu PC con WAMP, también `http://localhost/menus-app/`.
 
 Opcional: en **Authentication → Sign In / Providers → Email** puedes desactivar *Confirm email* para que las cuentas funcionen sin tener que confirmar el correo. Si lo dejas activado, Supabase envía el email de confirmación (el plan gratis tiene un límite bajo de emails por hora).
 
@@ -69,7 +69,16 @@ Esta clave está pensada para ir en el navegador, no pasa nada por subirla a Git
 
 ### 5. Publicarla en GitHub Pages
 
-En el repositorio: **Settings → Pages → Build and deployment → Deploy from a branch**, rama `main`, carpeta `/ (root)`. En un par de minutos estará en `https://therealteenidol.github.io/menus-app/`.
+1. En el repositorio: **Settings → Pages → Build and deployment → Deploy from a branch**, rama `main`, carpeta `/ (root)`.
+2. En **Custom domain** pon `yeschef.teenidol.es` (el archivo `CNAME` del repo ya lo indica).
+3. En el panel de DNS de `teenidol.es` (donde tengas registrado el dominio) crea este registro:
+
+   | Tipo | Nombre / Host | Valor / Destino |
+   |---|---|---|
+   | `CNAME` | `yeschef` | `therealteenidol.github.io` |
+
+   Mientras ese registro no exista, GitHub muestra *«yeschef.teenidol.es is improperly configured… InvalidDNSError»*. Los cambios de DNS tardan de unos minutos a unas horas en propagarse; cuando GitHub lo detecte, marca **Enforce HTTPS**.
+4. La app quedará en `https://yeschef.teenidol.es`.
 
 ### 6. Primer uso
 
