@@ -132,6 +132,11 @@ function route() {
 function view() {
   const r = route();
   if (!S.user) return authView(r.name === "registro" ? "register" : "login");
+  if (!S.profile && S.loadError) {
+    return `<div class="center-card"><h1>No se pudo cargar</h1><p class="notice">${esc(S.loadError)}</p>
+      <div class="row" style="justify-content:center"><button class="btn primary" data-act="retry">Reintentar</button>
+      <button class="btn link" data-act="logout">Cerrar sesión</button></div></div>`;
+  }
   if (!S.profile) return `<div class="center-card"><p>Cargando…</p></div>`;
   if (!S.family) return noFamilyView();
   let body = "";
@@ -438,6 +443,19 @@ async function loadPrefs() {
   S.prefs = check(await sb.from("preferences").select("*").order("item"));
 }
 
+// Primera carga tras iniciar sesión: si falla, se muestra el error en vez de quedarse "Cargando…"
+async function initialLoad() {
+  S.loadError = "";
+  try {
+    await refreshAll();
+    if (!S.profile) throw new Error("No se encontró tu perfil. ¿Ejecutaste los SQL de supabase/migrations?");
+  } catch (e) {
+    console.error(e);
+    S.loadError = e?.message || String(e);
+    render();
+  }
+}
+
 async function refreshAll() {
   if (!S.user) return render();
   await loadProfile();
@@ -492,6 +510,7 @@ document.addEventListener("click", async (e) => {
   try {
     switch (act) {
       case "close": return closeModal();
+      case "retry": return await initialLoad();
       case "logout":
         unsubscribe();
         await sb.auth.signOut();
@@ -777,7 +796,7 @@ sb.auth.onAuthStateChange((event, session) => {
   } else if (S.user.id !== prev) {
     S.profile = null;
     // fuera del callback para no bloquear el cliente de auth
-    setTimeout(() => refreshAll().catch(fail), 0);
+    setTimeout(initialLoad, 0);
   }
 });
 

@@ -1,6 +1,6 @@
 // Service worker: guarda la "carcasa" de la app para que abra rápido y funcione como app instalada.
 // Los datos (Supabase) siempre van por red.
-const CACHE = "yeschef-v2";
+const CACHE = "yeschef-v3";
 const SHELL = [
   "./", "./index.html", "./styles.css", "./config.js", "./js/app.js", "./js/shopping.js",
   "./manifest.webmanifest", "./icons/icon.svg", "./icons/icon-192.png",
