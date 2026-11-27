@@ -35,7 +35,7 @@ const sb = createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
 // ---------- Estado ----------
 const S = {
   user: null, profile: null, family: null, members: [],
-  week: mondayOf(new Date()), menu: [], shop: [], prefs: [],
+  week: mondayOf(new Date()), menu: [], shop: [], prefs: [], markets: [],
   aiBusy: "", channel: null,
 };
 
@@ -84,6 +84,7 @@ async function callAI(body) {
       const j = await error.context.json();
       if (j?.error) msg = j.error;
     } catch { /* sin cuerpo JSON */ }
+    if (msg === "Acción desconocida") msg = "La función de IA de Supabase está desactualizada: vuelve a desplegarla (mira el README).";
     if (/Failed to send|fetch/i.test(msg)) msg = "No se pudo contactar con la función de IA. ¿Está desplegada en Supabase?";
     throw new Error(msg);
   }
@@ -411,6 +412,7 @@ function familyView() {
       <button class="btn">Guardar ajustes</button>
     </form>` : `<p class="muted">${f.api_key_hint ? "API key configurada" : "Falta la API key: pídesela al administrador."} · Modelo: ${esc(MODELS[f.ai_model] || f.ai_model)}</p>`}
   </article>
+  ${marketsCard()}
   <article class="card">
     <h2>Mi cuenta</h2>
     <form data-form="myname" class="mini-add"><input id="me-name" name="name" value="${esc(S.profile.name)}" maxlength="80" required><button class="btn small">Cambiar nombre</button></form>
@@ -418,6 +420,49 @@ function familyView() {
     <div class="row"><button class="btn" data-act="logout">Cerrar sesión</button>
     <button class="btn link danger" data-act="leave">Salir de la familia</button></div>
   </article>`;
+}
+
+// ---------- Supermercados ----------
+function marketsCard() {
+  const admin = isAdmin();
+  const list = S.markets.length
+    ? `<ul class="markets">${S.markets.map((m) => `<li>
+        <div class="market-info">
+          <span class="market-name">${esc(m.name)} ${m.is_main ? `<span class="badge">principal</span>` : ""}</span>
+          <a class="small" href="${esc(m.url)}" target="_blank" rel="noopener">${esc(m.url.replace(/^https?:\/\//i, "").replace(/\/$/, ""))}</a>
+          <span class="muted small">${m.username ? `Usuario: ${esc(m.username)}` : "Sin usuario"} · ${m.has_password ? "contraseña guardada" : "sin contraseña"}</span>
+        </div>
+        ${admin ? `<button class="btn link small" data-act="market-edit" data-id="${m.id}">Editar</button>` : ""}
+      </li>`).join("")}</ul>`
+    : `<p class="muted">Todavía no hay supermercados.</p>`;
+  return `<article class="card">
+    <h2>Supermercados</h2>
+    <p class="muted small">Dónde hacéis la compra online. Más adelante, el asistente de compra entrará con estos datos para llenar el carrito (y se parará antes de pagar).
+    ${admin ? "Las contraseñas se guardan cifradas y nunca se vuelven a mostrar, ni siquiera a ti." : "Solo el administrador puede añadirlos o cambiarlos."}</p>
+    ${list}
+    ${admin ? `<div class="row"><button class="btn primary" data-act="market-new">Añadir supermercado</button></div>` : ""}
+  </article>`;
+}
+
+function marketModal(id) {
+  const m = id ? S.markets.find((x) => x.id === id) : null;
+  if (id && !m) return;
+  const first = !S.markets.length;
+  const val = (k, d = "") => esc(m ? m[k] : d);
+  openModal(`<form data-form="market" class="stack" ${m ? `data-id="${m.id}"` : ""}>
+    <h2>${m ? "Editar supermercado" : "Nuevo supermercado"}</h2>
+    <label>Nombre<input name="name" value="${val("name", first ? "Dia" : "")}" required maxlength="80" placeholder="Dia"></label>
+    <label>Web<input name="url" type="url" inputmode="url" value="${val("url", first ? "https://www.dia.es" : "")}" required maxlength="300" placeholder="https://www.dia.es"></label>
+    <label>Usuario o email <span class="muted small">(opcional)</span><input name="username" value="${val("username")}" maxlength="200" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+    <label>Contraseña ${m?.has_password ? `<span class="muted small">(guardada; déjala vacía para no cambiarla)</span>` : `<span class="muted small">(opcional)</span>`}
+      <input name="password" type="password" maxlength="200" autocomplete="new-password" placeholder="${m?.has_password ? "••••••••" : ""}"></label>
+    ${m?.has_password ? `<label class="inline"><input type="checkbox" name="clear_password"> Borrar la contraseña guardada</label>` : ""}
+    <label class="inline"><input type="checkbox" name="is_main" ${(m ? m.is_main : first) ? "checked" : ""}> Supermercado principal</label>
+    <p class="muted small">La contraseña se envía por conexión segura, se guarda cifrada y no se puede volver a ver desde la app. Solo la usará el asistente de compra.</p>
+    <div class="row"><button class="btn primary">Guardar</button>
+      ${m ? `<button type="button" class="btn danger" data-act="market-delete" data-id="${m.id}">Borrar</button>` : ""}
+      <button type="button" class="btn link" data-act="close">Cancelar</button></div>
+  </form>`);
 }
 
 // ---------- Carga de datos ----------
@@ -438,6 +483,14 @@ async function loadMenu() {
 }
 async function loadShop() {
   S.shop = check(await sb.from("shopping_items").select("*").eq("family_id", S.family.id).order("name"));
+}
+async function loadMarkets() {
+  // Sin la tabla (SQL 0003 sin ejecutar) la app sigue funcionando
+  const { data, error } = await sb.from("supermarkets")
+    .select("id, name, url, username, has_password, is_main, created_at")
+    .eq("family_id", S.family.id).order("is_main", { ascending: false }).order("created_at");
+  if (error) console.warn("supermercados:", error.message);
+  S.markets = data ?? [];
 }
 async function loadPrefs() {
   S.prefs = check(await sb.from("preferences").select("*").order("item"));
@@ -466,7 +519,7 @@ async function refreshAll() {
   }
   await loadFamily();
   if (S.family) {
-    await Promise.all([loadMenu(), loadShop(), loadPrefs()]);
+    await Promise.all([loadMenu(), loadShop(), loadPrefs(), loadMarkets()]);
     subscribe();
   } else {
     unsubscribe();
@@ -483,7 +536,7 @@ function scheduleRefresh() {
 function subscribe() {
   if (S.channel) return;
   S.channel = sb.channel("familia");
-  for (const table of ["menu_items", "shopping_items", "preferences", "families", "profiles"]) {
+  for (const table of ["menu_items", "shopping_items", "preferences", "families", "profiles", "supermarkets"]) {
     S.channel.on("postgres_changes", { event: "*", schema: "public", table }, scheduleRefresh);
   }
   S.channel.subscribe();
@@ -536,6 +589,14 @@ document.addEventListener("click", async (e) => {
       case "ingredients": return await runIngredients();
       case "to-shop": return await menuToShop();
       case "shop-edit": return shopEditModal(id);
+      case "market-new": return marketModal(null);
+      case "market-edit": return marketModal(el.dataset.id);
+      case "market-delete":
+        if (!confirm("¿Borrar este supermercado y su contraseña?")) return;
+        await callAI({ action: "delete_supermarket", id: el.dataset.id });
+        closeModal();
+        await refreshAll();
+        return toast("Supermercado borrado");
       case "shop-delete":
         check(await sb.from("shopping_items").delete().eq("id", id));
         closeModal();
@@ -749,6 +810,17 @@ document.addEventListener("submit", async (e) => {
         toast("API key guardada");
         break;
       }
+      case "market":
+        await callAI({
+          action: "save_supermarket", id: form.dataset.id || null,
+          name: v("name"), url: v("url"), username: v("username"),
+          password: String(fd.get("password") ?? ""),
+          clear_password: fd.get("clear_password") === "on", is_main: fd.get("is_main") === "on",
+        });
+        closeModal();
+        await refreshAll();
+        toast("Supermercado guardado");
+        break;
       case "settings":
         check(await sb.rpc("update_family", {
           p_name: v("name"), p_ai_model: v("ai_model"), p_servings: Number(v("servings")) || 0,
