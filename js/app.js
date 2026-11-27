@@ -15,9 +15,9 @@ const MODELS = {
   "claude-haiku-5-5": "Claude Haiku 5.5 (el más barato y rápido)",
 };
 const KINDS = {
-  like: { label: "Le gusta", icon: "👍" },
-  dislike: { label: "No le gusta", icon: "👎" },
-  allergy: { label: "Alergias e intolerancias", icon: "⚠️" },
+  like: { label: "Le gusta" },
+  dislike: { label: "No le gusta" },
+  allergy: { label: "Alergias e intolerancias" },
 };
 
 const $app = document.getElementById("app");
@@ -144,10 +144,10 @@ function view() {
   else if (r.name === "gustos") body = prefsView();
   else if (r.name === "familia") body = familyView();
   else body = menuView();
-  const tab = (id, icon, label) =>
-    `<a href="#/${id}" class="${(r.name || "menu") === id || (id === "menu" && !["compra", "gustos", "familia"].includes(r.name)) ? "on" : ""}"><span>${icon}</span>${label}</a>`;
+  const tab = (id, label) =>
+    `<a href="#/${id}" class="${(r.name || "menu") === id || (id === "menu" && !["compra", "gustos", "familia"].includes(r.name)) ? "on" : ""}"><span>${label}</span></a>`;
   return `<main class="page">${body}</main>
-    <nav class="tabs">${tab("menu", "🍽️", "Menú")}${tab("compra", "🛒", "Compra")}${tab("gustos", "❤️", "Gustos")}${tab("familia", "👨‍👩‍👧", "Familia")}</nav>`;
+    <nav class="tabs" aria-label="Secciones">${tab("menu", "Menú")}${tab("compra", "Compra")}${tab("gustos", "Gustos")}${tab("familia", "Familia")}</nav>`;
 }
 
 // ---------- Acceso ----------
@@ -155,25 +155,25 @@ function authView(mode) {
   const reg = mode === "register";
   const invite = localStorage.getItem("pendingInvite");
   return `<div class="center-card">
-    <div class="logo">👨‍🍳</div>
-    <h1>YES CHEF</h1>
-    <p class="muted">Planifica la semana con IA y comparte la lista de la compra.</p>
+    <h1 class="brand">YES CHEF</h1>
+    <p class="tagline">Planifica la semana con IA y comparte la lista de la compra.</p>
     ${invite ? `<p class="notice">Te han invitado a una familia. ${reg ? "Crea tu cuenta" : "Entra o crea una cuenta"} para unirte.</p>` : ""}
-    <form data-form="${reg ? "register" : "login"}" class="stack">
+    <form data-form="${reg ? "register" : "login"}" class="stack card">
       ${reg ? `<label>Tu nombre<input id="a-name" name="name" required maxlength="80" autocomplete="name"></label>` : ""}
       <label>Email<input id="a-email" name="email" type="email" required autocomplete="email"></label>
       <label>Contraseña<input id="a-pass" name="password" type="password" required minlength="8" autocomplete="${reg ? "new-password" : "current-password"}"></label>
       <button class="btn primary">${reg ? "Crear cuenta" : "Entrar"}</button>
     </form>
-    <p class="muted small">${reg ? `¿Ya tienes cuenta? <a href="#/entrar">Entra</a>` : `¿No tienes cuenta? <a href="#/registro">Regístrate</a> · <a href="#" data-act="forgot">¿Olvidaste la contraseña?</a>`}</p>
+    <p class="small on-bg">${reg ? `¿Ya tienes cuenta? <a href="#/entrar">Entra</a>` : `¿No tienes cuenta? <a href="#/registro">Regístrate</a> · <a href="#" data-act="forgot">¿Olvidaste la contraseña?</a>`}</p>
   </div>`;
 }
 
 function noFamilyView() {
   const invite = localStorage.getItem("pendingInvite") || "";
   return `<div class="center-card">
-    <h1>Hola, ${esc(S.profile.name)} 👋</h1>
-    <p class="muted">Para empezar, crea tu familia o únete a la de alguien con su código de invitación.</p>
+    <h1 class="brand">YES CHEF</h1>
+    <h2 class="hello">Hola, ${esc(S.profile.name)}</h2>
+    <p class="tagline">Para empezar, crea tu familia o únete a la de alguien con su código de invitación.</p>
     <form data-form="join" class="stack card">
       <h2>Unirme a una familia</h2>
       <label>Código de invitación<input id="j-code" name="code" value="${esc(invite)}" data-fresh placeholder="P. ej. K7M2QX9A" autocapitalize="characters" required></label>
@@ -184,7 +184,7 @@ function noFamilyView() {
       <label>Nombre<input id="c-name" name="name" placeholder="Familia García" maxlength="100"></label>
       <button class="btn">Crear familia</button>
     </form>
-    <button class="btn link" data-act="logout">Cerrar sesión</button>
+    <button class="btn link on-bg" data-act="logout">Cerrar sesión</button>
   </div>`;
 }
 
@@ -199,7 +199,7 @@ function menuView() {
   for (let d = 0; d < 7; d++) {
     const date = addDays(S.week, d);
     const label = new Date(date + "T12:00:00").toLocaleDateString("es-ES", { day: "numeric", month: "short" });
-    days += `<section class="day ${date === today ? "today" : ""}"><h3>${DAYS[d]} <small>${label}</small></h3>`;
+    days += `<section class="day ${date === today ? "today" : ""}"><h3>${DAYS[d]} <small>${label}</small>${date === today ? `<span class="badge">Hoy</span>` : ""}</h3>`;
     for (const m of meals) {
       const it = byKey.get(`${d}-${m}`);
       days += `<button class="meal" data-act="dish" data-day="${d}" data-meal="${m}">
@@ -207,22 +207,22 @@ function menuView() {
         ${it?.dish
           ? `<span class="dish">${esc(it.dish)}</span>${it.notes ? `<span class="notes">${esc(it.notes)}</span>` : ""}
              ${it.ingredients === null ? `<span class="badge">ingredientes pendientes</span>` : ""}`
-          : `<span class="dish empty">+ Añadir plato</span>`}
+          : `<span class="dish empty">Añadir plato</span>`}
       </button>`;
     }
     days += `</section>`;
   }
   return `<header class="bar">
-      <button class="icon" data-act="week" data-delta="-7" aria-label="Semana anterior">‹</button>
+      <button class="btn small nav-week" data-act="week" data-delta="-7" aria-label="Semana anterior">Anterior</button>
       <div class="bar-title"><h1>Menú</h1><span class="muted">${weekLabel(S.week)}</span></div>
-      <button class="icon" data-act="week" data-delta="7" aria-label="Semana siguiente">›</button>
+      <button class="btn small nav-week" data-act="week" data-delta="7" aria-label="Semana siguiente">Siguiente</button>
     </header>
     ${S.aiBusy ? `<div class="notice busy"><span class="spinner"></span>${esc(S.aiBusy)}</div>` : ""}
     ${!hasKey ? `<div class="notice">Para generar menús con IA, ${isAdmin() ? `añade la API key de Claude en <a href="#/familia">Familia</a>` : "el administrador de la familia tiene que añadir la API key de Claude"}.</div>` : ""}
     <div class="actions">
-      <button class="btn primary" data-act="generate" ${!hasKey || S.aiBusy ? "disabled" : ""}>✨ ${S.menu.length ? "Regenerar semana" : "Generar semana con IA"}</button>
+      <button class="btn primary" data-act="generate" ${!hasKey || S.aiBusy ? "disabled" : ""}>${S.menu.length ? "Regenerar semana" : "Generar semana con IA"}</button>
       ${missing && hasKey ? `<button class="btn" data-act="ingredients" ${S.aiBusy ? "disabled" : ""}>Calcular ingredientes (${missing})</button>` : ""}
-      ${S.menu.some((i) => i.dish) ? `<button class="btn" data-act="to-shop" ${S.aiBusy ? "disabled" : ""}>🛒 Pasar a la lista</button>` : ""}
+      ${S.menu.some((i) => i.dish) ? `<button class="btn" data-act="to-shop" ${S.aiBusy ? "disabled" : ""}>Pasar a la lista</button>` : ""}
     </div>
     ${days}`;
 }
@@ -242,7 +242,7 @@ function dishModal(day, meal) {
       <button type="button" class="btn link" data-act="close">Cancelar</button></div>
   </form>
   ${it && hasKey ? `<form data-form="regen" class="stack card" data-id="${it.id}">
-    <h3>✨ Otra idea con IA</h3>
+    <h3>Otra idea con IA</h3>
     <label>¿Qué te apetece? (opcional)<input name="hint" placeholder="P. ej. algo con pollo, más ligero, que no lleve horno"></label>
     <button class="btn">Cambiar este plato</button>
   </form>` : ""}`);
@@ -251,7 +251,7 @@ function dishModal(day, meal) {
 function generateModal() {
   const last = localStorage.getItem("lastInstructions") || "";
   openModal(`<form data-form="generate" class="stack">
-    <h2>✨ Generar la semana</h2>
+    <h2>Generar la semana</h2>
     <p class="muted small">Se tendrán en cuenta los gustos y alergias de todos y los tips de la familia${S.family.tips ? "" : " (puedes añadir tips en Familia)"}.</p>
     ${S.menu.length ? `<p class="notice">Se sustituirá el menú actual de esta semana.</p>` : ""}
     <label>Indicaciones solo para esta semana (opcional)
@@ -303,7 +303,7 @@ function shopView() {
   const item = (i) => `<li class="shop-item ${i.checked ? "done" : ""}">
       <label class="check"><input type="checkbox" data-act="toggle" data-id="${i.id}" ${i.checked ? "checked" : ""}>
         <span class="name">${esc(i.name)}</span>${i.quantity ? `<span class="qty">${esc(i.quantity)}</span>` : ""}</label>
-      <button class="icon small" data-act="shop-edit" data-id="${i.id}" aria-label="Editar">✎</button>
+      <button class="btn link small" data-act="shop-edit" data-id="${i.id}">Editar</button>
     </li>`;
   let groups = "";
   for (const sec of SECTIONS) {
@@ -315,7 +315,7 @@ function shopView() {
       <input id="s-name" name="name" placeholder="Añadir producto…" required maxlength="150">
       <input id="s-qty" name="quantity" placeholder="Cant." maxlength="80" class="qty-in">
       <select id="s-sec" name="section">${SECTIONS.map((s) => `<option>${s}</option>`).join("")}</select>
-      <button class="btn primary">+</button>
+      <button class="btn primary">Añadir</button>
     </form>
     ${!S.shop.length ? `<p class="empty-state">La lista está vacía. Añade cosas arriba o pásalas desde el <a href="#/menu">menú</a>.</p>` : ""}
     ${groups}
@@ -344,8 +344,8 @@ function prefsView() {
     const groups = Object.entries(KINDS).map(([k, meta]) => {
       const list = S.prefs.filter((p) => p.user_id === m.id && p.kind === k);
       return `<div class="pref-group ${k}">
-        <h4>${meta.icon} ${meta.label}</h4>
-        <div class="chips">${list.map((p) => `<span class="chip">${esc(p.item)}<button data-act="pref-del" data-id="${p.id}" aria-label="Quitar">×</button></span>`).join("") || `<span class="muted small">Nada todavía</span>`}</div>
+        <h4>${meta.label}</h4>
+        <div class="chips">${list.map((p) => `<button class="chip" data-act="pref-del" data-id="${p.id}" title="Toca para quitar" aria-label="Quitar ${esc(p.item)}">${esc(p.item)}</button>`).join("") || `<span class="muted small">Nada todavía</span>`}</div>
         <form data-form="pref-add" data-kind="${k}" data-user="${m.id}" class="mini-add">
           <input id="p-${m.id}-${k}" name="item" placeholder="Añadir (separa con comas)" maxlength="300">
           <button class="btn small">Añadir</button>
@@ -360,7 +360,7 @@ function prefsView() {
       ${groups}
     </article>`;
   }).join("");
-  return `<header class="bar"><div class="bar-title"><h1>Gustos de la familia</h1><span class="muted">La IA los tiene en cuenta al hacer el menú</span></div></header>${cards}`;
+  return `<header class="bar"><div class="bar-title"><h1>Gustos de la familia</h1><span class="muted">La IA los tiene en cuenta al hacer el menú. Toca un gusto para quitarlo.</span></div></header>${cards}`;
 }
 
 // ---------- Familia y ajustes ----------
@@ -398,7 +398,7 @@ function familyView() {
     <form data-form="apikey" class="stack">
       <label>API key de Claude ${f.api_key_hint ? `<span class="muted small">(guardada: ${esc(f.api_key_hint)})</span>` : ""}
         <input id="f-key" name="api_key" type="password" autocomplete="off" placeholder="${f.api_key_hint ? "Escribe una nueva para cambiarla" : "sk-ant-…"}"></label>
-      <p class="muted small">Se guarda cifrada y nunca vuelve al navegador. Consíguela en console.anthropic.com → API Keys.</p>
+      <p class="muted small">Se guarda cifrada y nunca vuelve al navegador. Consíguela en console.anthropic.com, en el apartado API Keys.</p>
       <div class="row"><button class="btn">Guardar key</button>${f.api_key_hint ? `<button type="button" class="btn link danger" data-act="del-key">Borrar key</button>` : ""}</div>
     </form>
     <form data-form="settings" class="stack">
@@ -409,7 +409,7 @@ function familyView() {
         ${MEALS.map((m) => `<label class="inline"><input type="checkbox" name="meals" value="${m}" ${familyMeals().includes(m) ? "checked" : ""}> ${MEAL_LABEL[m]}</label>`).join("")}
       </fieldset>
       <button class="btn">Guardar ajustes</button>
-    </form>` : `<p class="muted">${f.api_key_hint ? "✅ API key configurada" : "Falta la API key: pídesela al administrador."} · Modelo: ${esc(MODELS[f.ai_model] || f.ai_model)}</p>`}
+    </form>` : `<p class="muted">${f.api_key_hint ? "API key configurada" : "Falta la API key: pídesela al administrador."} · Modelo: ${esc(MODELS[f.ai_model] || f.ai_model)}</p>`}
   </article>
   <article class="card">
     <h2>Mi cuenta</h2>
@@ -625,7 +625,7 @@ document.addEventListener("submit", async (e) => {
           options: { data: { name: v("name") }, emailRedirectTo: location.origin + location.pathname },
         }));
         if (!data.session) {
-          openModal(`<h2>Revisa tu email 📬</h2><p>Te hemos enviado un enlace para confirmar la cuenta. Después, vuelve aquí y entra.</p>
+          openModal(`<h2>Revisa tu email</h2><p>Te hemos enviado un enlace para confirmar la cuenta. Después, vuelve aquí y entra.</p>
             <button class="btn primary" data-act="close">Vale</button>`);
           location.hash = "#/entrar";
         }
