@@ -33,6 +33,7 @@ supabase/functions/ai/index.ts       función que habla con Claude
 
 1. Entra en [supabase.com](https://supabase.com), crea una cuenta y pulsa **New project**. Elige una región de Europa (p. ej. *West EU (Ireland)*) y una contraseña para la base de datos (guárdala).
 2. Cuando termine de crearse, ve a **SQL Editor → New query**, pega todo el contenido de [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) y pulsa **Run**. Debe terminar con *Success*.
+3. Haz lo mismo con [`supabase/migrations/0002_grants.sql`](supabase/migrations/0002_grants.sql) (da a la app permiso para usar las tablas; sin él sale *permission denied for table profiles*).
 
 ### 2. Configurar el inicio de sesión
 

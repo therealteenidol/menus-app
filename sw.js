@@ -1,6 +1,6 @@
 // Service worker: guarda la "carcasa" de la app para que abra rápido y funcione como app instalada.
 // Los datos (Supabase) siempre van por red.
-const CACHE = "yeschef-v2";
+const CACHE = "yeschef-v4";
 const SHELL = [
   "./", "./index.html", "./styles.css", "./config.js", "./js/app.js", "./js/shopping.js",
   "./manifest.webmanifest", "./icons/icon.svg", "./icons/icon-192.png",
@@ -21,8 +21,8 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET") return;
-  // Librería de Supabase desde el CDN: caché primero (la versión está fijada)
-  if (url.hostname === "cdn.jsdelivr.net") {
+  // Librería de Supabase (versión fijada) y fuentes de Google: caché primero
+  if (["cdn.jsdelivr.net", "fonts.googleapis.com", "fonts.gstatic.com"].includes(url.hostname)) {
     e.respondWith(caches.match(e.request).then((r) => r || fetch(e.request).then((res) => {
       const copy = res.clone();
       caches.open(CACHE).then((c) => c.put(e.request, copy));
