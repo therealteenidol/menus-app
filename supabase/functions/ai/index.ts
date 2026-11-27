@@ -6,6 +6,10 @@
 //   generate_week  { week_start, instructions } genera los platos de la semana
 //   ingredients    { week_start }               calcula ingredientes de hasta 6 platos pendientes
 //   regenerate     { item_id, hint }            cambia un plato por otro (con ingredientes)
+//   save_supermarket   { id?, name, url, username, password?, clear_password?, is_main }
+//                                               (solo admin) crea o edita un supermercado; la contraseña
+//                                               se guarda cifrada y nunca se devuelve
+//   delete_supermarket { id }                   (solo admin) borra un supermercado y su contraseña
 
 import Anthropic from "npm:@anthropic-ai/sdk@1.7.0";
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.119.0";
@@ -350,6 +354,75 @@ async function regenerate(db: SupabaseClient, family: Family, apiKey: string, bo
   return { ok: true };
 }
 
+// ---------- Supermercados (usuario y contraseña para el agente de compra) ----------
+
+async function supermarketAction(
+  admin: SupabaseClient, familyId: string, action: string, body: Record<string, unknown>,
+) {
+  const id = body.id ? String(body.id) : null;
+  if (id) {
+    const { data: own } = await admin.from("supermarkets").select("id").eq("id", id).eq("family_id", familyId).maybeSingle();
+    if (!own) throw new UserError("Ese supermercado no existe", 404);
+  }
+
+  if (action === "delete_supermarket") {
+    if (!id) throw new UserError("Falta el supermercado a borrar");
+    const del = await admin.from("supermarkets").delete().eq("id", id).eq("family_id", familyId);
+    if (del.error) throw del.error;
+    return { ok: true };
+  }
+
+  const name = String(body.name ?? "").trim().slice(0, 80);
+  let url = String(body.url ?? "").trim();
+  const username = String(body.username ?? "").trim().slice(0, 200);
+  const password = String(body.password ?? "");
+  const clearPassword = body.clear_password === true;
+  const isMain = body.is_main === true;
+  if (!name) throw new UserError("Ponle un nombre al supermercado");
+  if (url && !/^https?:\/\//i.test(url)) url = "https://" + url;
+  try {
+    const u = new URL(url);
+    if (!["http:", "https:"].includes(u.protocol) || !u.hostname.includes(".")) throw new Error();
+  } catch {
+    throw new UserError("La web no es válida (p. ej. https://www.dia.es)");
+  }
+  if (url.length > 300) throw new UserError("La web es demasiado larga");
+  if (password.length > 200) throw new UserError("La contraseña es demasiado larga");
+
+  // Solo uno puede ser el principal
+  if (isMain) {
+    let q = admin.from("supermarkets").update({ is_main: false }).eq("family_id", familyId).eq("is_main", true);
+    if (id) q = q.neq("id", id);
+    const r = await q;
+    if (r.error) throw r.error;
+  }
+
+  const fields: Record<string, unknown> = { name, url, username, is_main: isMain };
+  let smId = id;
+  if (smId) {
+    const r = await admin.from("supermarkets").update(fields).eq("id", smId).eq("family_id", familyId);
+    if (r.error) throw r.error;
+  } else {
+    const { count } = await admin.from("supermarkets").select("id", { count: "exact", head: true }).eq("family_id", familyId);
+    if ((count ?? 0) >= 20) throw new UserError("Como mucho 20 supermercados por familia");
+    const r = await admin.from("supermarkets").insert({ ...fields, family_id: familyId }).select("id").single();
+    if (r.error) throw r.error;
+    smId = r.data.id;
+  }
+
+  if (password) {
+    const r = await admin.from("supermarket_secrets").upsert({
+      supermarket_id: smId, password_enc: await encrypt(password), updated_at: new Date().toISOString(),
+    });
+    if (r.error) throw r.error;
+    await admin.from("supermarkets").update({ has_password: true }).eq("id", smId);
+  } else if (clearPassword) {
+    await admin.from("supermarket_secrets").delete().eq("supermarket_id", smId);
+    await admin.from("supermarkets").update({ has_password: false }).eq("id", smId);
+  }
+  return { ok: true, id: smId };
+}
+
 // ---------- Servidor ----------
 
 Deno.serve(async (req) => {
@@ -395,6 +468,11 @@ Deno.serve(async (req) => {
       if (up.error) throw up.error;
       await admin.from("families").update({ api_key_hint: hint }).eq("id", family.id);
       return json({ ok: true, hint });
+    }
+
+    if (action === "save_supermarket" || action === "delete_supermarket") {
+      if (profile.role !== "admin") throw new UserError("Solo el administrador puede cambiar los supermercados", 403);
+      return json(await supermarketAction(admin, family.id, action, body));
     }
 
     const { data: secret } = await admin.from("family_secrets").select("api_key_enc").eq("family_id", family.id).maybeSingle();

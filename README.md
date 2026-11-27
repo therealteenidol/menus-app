@@ -6,8 +6,9 @@
 - **Gustos**: cada miembro apunta lo que le gusta, lo que no y sus alergias (también se pueden apuntar las de otro miembro, p. ej. los niños).
 - **Menú con IA (Claude)**: genera la semana teniendo en cuenta los gustos de todos y los *tips* de la familia («pescado 2 veces», «cenas ligeras»…). Cada plato se puede editar a mano o cambiar por otra idea de la IA.
 - **Lista de la compra**: se crea desde el menú, sumando ingredientes repetidos y agrupada por secciones del súper. Todos pueden añadir, marcar y borrar.
+- **Supermercados**: en *Familia → Supermercados* el administrador guarda la web de cada súper (Dia, Mercadona…), el usuario y la contraseña, y marca cuál es el principal. Los usará el agente de compra.
 
-El agente que compra en dia.es llegará en una fase posterior.
+El agente que compra en dia.es llegará en una fase posterior; ya se pueden dejar guardados los supermercados con su usuario y contraseña.
 
 ## Cómo está hecha
 
@@ -17,13 +18,15 @@ El agente que compra en dia.es llegará en una fase posterior.
 | Cuentas, base de datos y tiempo real | [Supabase](https://supabase.com) | Gratis (plan Free) |
 | Llamadas a la IA | Una *Edge Function* de Supabase (`supabase/functions/ai`) | Gratis en Supabase; Claude se paga aparte con tu API key (unos céntimos por menú) |
 
-La **API key de Claude** se guarda cifrada (AES-GCM) en una tabla que el navegador no puede leer. Solo la Edge Function la descifra para llamar a Claude, así que nunca llega al móvil de nadie. Cada familia solo puede ver sus propios datos gracias a las reglas de seguridad (RLS) de la base de datos.
+La **API key de Claude** y las **contraseñas de los supermercados** se guardan cifradas (AES-GCM) en tablas que el navegador no puede leer. Solo el servidor (la Edge Function y, más adelante, el agente de compra) las puede descifrar, así que una vez guardadas nunca vuelven al móvil de nadie, ni siquiera al del administrador. Cada familia solo puede ver sus propios datos gracias a las reglas de seguridad (RLS) de la base de datos.
 
 ```
 index.html, styles.css, js/          la app
 config.js                            URL y clave pública de Supabase (lo rellenas tú)
 manifest.webmanifest, sw.js, icons/  lo que la hace instalable (PWA)
 supabase/migrations/0001_init.sql    tablas, seguridad y funciones de la base de datos
+supabase/migrations/0002_grants.sql  permisos de las tablas
+supabase/migrations/0003_supermarkets.sql  supermercados y sus contraseñas cifradas
 supabase/functions/ai/index.ts       función que habla con Claude
 ```
 
@@ -34,6 +37,7 @@ supabase/functions/ai/index.ts       función que habla con Claude
 1. Entra en [supabase.com](https://supabase.com), crea una cuenta y pulsa **New project**. Elige una región de Europa (p. ej. *West EU (Ireland)*) y una contraseña para la base de datos (guárdala).
 2. Cuando termine de crearse, ve a **SQL Editor → New query**, pega todo el contenido de [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) y pulsa **Run**. Debe terminar con *Success*.
 3. Haz lo mismo con [`supabase/migrations/0002_grants.sql`](supabase/migrations/0002_grants.sql) (da a la app permiso para usar las tablas; sin él sale *permission denied for table profiles*).
+4. Y con [`supabase/migrations/0003_supermarkets.sql`](supabase/migrations/0003_supermarkets.sql) (crea los supermercados de la familia).
 
 ### 2. Configurar el inicio de sesión
 
@@ -89,6 +93,15 @@ Esta clave está pensada para ir en el navegador, no pasa nada por subirla a Git
 4. Cada uno rellena sus **Gustos**, y en **Menú** pulsa **Generar semana con IA**.
 
 Para instalarla en el móvil: en Android (Chrome) menú ⋮ → *Añadir a pantalla de inicio*; en iPhone (Safari) botón compartir → *Añadir a pantalla de inicio*.
+
+## Actualizar una instalación que ya funciona (supermercados)
+
+Si ya tenías la app funcionando antes de que existiera la sección **Supermercados**, solo hay que hacer dos cosas en Supabase:
+
+1. **SQL Editor → New query**: pega [`supabase/migrations/0003_supermarkets.sql`](supabase/migrations/0003_supermarkets.sql) y pulsa **Run** (debe salir *Success*).
+2. **Edge Functions → ai → Code**: sustituye el código por el nuevo [`supabase/functions/ai/index.ts`](supabase/functions/ai/index.ts) y pulsa **Deploy**. El secreto `APP_ENCRYPTION_KEY` no se toca: se usa la misma clave para cifrar las contraseñas.
+
+Si te saltas el paso 2, al guardar un supermercado la app avisa de que la función está desactualizada.
 
 ## Probar en local con WAMP
 
